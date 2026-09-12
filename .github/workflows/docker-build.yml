@@ -5,10 +5,10 @@ name: docker-build
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
     tags: ["v*"]
   pull_request:
-    branches: [master]
+    branches: [main, master]
   workflow_dispatch:
 
 env:
