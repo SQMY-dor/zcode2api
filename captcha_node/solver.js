@@ -16,11 +16,35 @@ const dom = new JSDOM(html, {
   pretendToBeVisual: true,
   virtualConsole: vc,
   beforeParse(window) {
+    // ⚠️ 2026-09-12 修复：jsdom 默认 UA 带 "jsdom/24.1.0" 等破绽，阿里云风控直接判 F001。
+    // 补真实浏览器指纹后 startTracelessVerification 才能拿到 verifyParam。
+    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    Object.defineProperty(window.navigator, 'userAgent', { get: () => UA });
+    Object.defineProperty(window.navigator, 'appVersion', { get: () => UA.replace('Mozilla/', '') });
+    Object.defineProperty(window.navigator, 'platform', { get: () => 'Win32' });
+    Object.defineProperty(window.navigator, 'vendor', { get: () => 'Google Inc.' });
+    Object.defineProperty(window.navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(window.navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+    Object.defineProperty(window.navigator, 'language', { get: () => 'zh-CN' });
+    Object.defineProperty(window.navigator, 'hardwareConcurrency', { get: () => 8 });
+    Object.defineProperty(window.navigator, 'deviceMemory', { get: () => 8 });
+    Object.defineProperty(window.navigator, 'maxTouchPoints', { get: () => 0 });
+    window.navigator.plugins = [1, 2, 3, 4, 5];
+    window.navigator.mimeTypes = [1, 2];
+    window.chrome = { runtime: {}, app: { isInstalled: false }, csi: () => {}, loadTimes: () => {} };
+    Object.defineProperty(window.screen, 'width', { get: () => 1920 });
+    Object.defineProperty(window.screen, 'height', { get: () => 1080 });
+    Object.defineProperty(window.screen, 'availWidth', { get: () => 1920 });
+    Object.defineProperty(window.screen, 'availHeight', { get: () => 1040 });
+    Object.defineProperty(window.screen, 'colorDepth', { get: () => 24 });
+    Object.defineProperty(window, 'devicePixelRatio', { get: () => 1 });
+    window.requestIdleCallback = window.requestIdleCallback || ((cb) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 1));
+
     window.matchMedia = () => ({ matches:false, media:'', onchange:null, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){return false;} });
     // canvas / webgl 指纹桩：返回稳定值即可
     const proto = window.HTMLCanvasElement.prototype;
     proto.getContext = function (type) {
-      if (/webgl/i.test(type)) return { canvas:this, getParameter:()=>'Intel', getExtension:()=>null, getSupportedExtensions:()=>['WEBGL_debug_renderer_info'], getContextAttributes:()=>({}), getShaderPrecisionFormat:()=>({precision:23,rangeMin:127,rangeMax:127}) };
+      if (/webgl/i.test(type)) return { canvas:this, getParameter:(p)=>({0x1F00:'Google Inc. (Intel)',0x1F01:'ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)'}[p]||'Intel'), getExtension:()=>null, getSupportedExtensions:()=>['WEBGL_debug_renderer_info'], getContextAttributes:()=>({}), getShaderPrecisionFormat:()=>({precision:23,rangeMin:127,rangeMax:127}) };
       return { canvas:this, fillRect(){}, clearRect(){}, getImageData:(x,y,w=1,h=1)=>({data:new Uint8ClampedArray(w*h*4)}), putImageData(){}, createImageData:(w=1,h=1)=>({data:new Uint8ClampedArray(w*h*4)}), setTransform(){}, transform(){}, drawImage(){}, save(){}, restore(){}, beginPath(){}, moveTo(){}, lineTo(){}, bezierCurveTo(){}, quadraticCurveTo(){}, closePath(){}, clip(){}, stroke(){}, fill(){}, arc(){}, rect(){}, ellipse(){}, translate(){}, scale(){}, rotate(){}, fillText(){}, strokeText(){}, measureText:(t)=>({width:(''+t).length*8}), createLinearGradient:()=>({addColorStop(){}}), createRadialGradient:()=>({addColorStop(){}}), createPattern:()=>({}), isPointInPath:()=>false, font:'10px sans-serif', textBaseline:'alphabetic', textAlign:'start', fillStyle:'#000', strokeStyle:'#000', globalAlpha:1, lineWidth:1, shadowBlur:0, shadowColor:'' };
     };
     proto.toDataURL = () => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';

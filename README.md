@@ -1,3 +1,19 @@
+> ### 本仓库说明（修复版 fork）
+>
+> 本仓库 fork 自 [liu5269/zcode2api](https://github.com/liu5269/zcode2api)（AGPL-3.0），功能与许可证保持一致，只修了一处**会导致项目在当前上游环境下完全不可用**的问题：
+>
+> - **`captcha_node/solver.js`（阿里云无痕验证求解器）**：补上真实浏览器指纹。原版在 jsdom 里暴露 `jsdom/24.1.0` 之类特征（UA 未覆写、缺 `window.chrome` / plugins / screen 等），阿里云风控直接返回
+>   `{"success":true,"verifyResult":false,"verifyCode":"F001"}` → **JWT（Coding Plan）模式必然失败**。
+>   修复：覆写 `userAgent`/`platform`/`vendor`/`webdriver`/`languages`/`hardwareConcurrency`/`deviceMemory`、
+>   补齐 `navigator.plugins|mimeTypes`、`window.chrome`、screen 尺寸、`devicePixelRatio`、`requestIdleCallback`，
+>   并把 WebGL 的 `UNMASKED_VENDOR_WEBGL`/`UNMASKED_RENDERER_WEBGL` 返回成 ANGLE/Intel 真机串。
+>   实测单次成功率约 **4/6**，配合重试稳定通过 —— 建议 `ZCODE_CAPTCHA_RETRIES=8`（本项目部署时用的值）。
+> - ⚠️ 原 README 中让用户拉取的 `ghcr.io/yuanhhs/zcode2api` 镜像属于**第三方账号**（其仓库现已不可查），
+>   本仓库**不建议使用该镜像**，请按下方「Docker 部署」从源码自行构建。
+>
+> 上游自 2026-06-16 起未再更新。本仓库仅做必要修复；上游接口或风控一变（例如
+> `…/api/v1/client/configs?app_version=` 的版本号、阿里云 SDK 指纹逻辑），可能仍需调整。
+
 # zcode2api
 
 将 ZCode (zcode.z.ai) Coding Plan 额度转为标准 Anthropic Messages API，支持多账号轮询、
@@ -41,6 +57,9 @@ docker run -d --name zcode2api \
 - **请勿**将 `.env`、`data/` 打入镜像——已在 `.dockerignore` 中排除。
 
 ### 自动构建镜像(GHCR)
+
+> ⚠️ **本仓库不建议拉取下面这个第三方镜像**（`ghcr.io/yuanhhs/…` 属于他人账号，其仓库已不可查）。
+> 请用本仓库自己的 workflow 构建到你自己的 GHCR，或直接 `docker compose up -d --build` 本地构建。
 
 `.github/workflows/docker-build.yml` 会在**每次更新**(push 到 `master` 或打 `v*` tag)时
 **自动构建并发布镜像到 GHCR(GitHub 容器仓库,`ghcr.io`)**,使用内置 `GITHUB_TOKEN`,
